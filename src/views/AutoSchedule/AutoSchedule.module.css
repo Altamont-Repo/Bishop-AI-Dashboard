@@ -1,0 +1,16 @@
+.introRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.controls { display: flex; align-items: flex-end; gap: 10px; }
+.ctl { font-size: 11px; color: var(--ink2); font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
+.ctl select { font-size: 12px; }
+
+.unplaceable td { background: var(--red-bg) !important; }
+.excluded { opacity: .5; }
+.excluded td { text-decoration: none; }
+
+.reason { font-size: 10.5px; color: var(--ink2); margin-top: 2px; }
+
+.batchTag {
+  display: inline-block; margin-left: 6px; font-size: 9.5px; font-weight: 700;
+  color: var(--green-dark); background: var(--done-bg); border: 1px solid var(--green);
+  border-radius: 8px; padding: 0 6px;
+}

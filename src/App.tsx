@@ -7,6 +7,7 @@ import { TopBar } from "./components/layout/TopBar";
 import { Toaster } from "./components/ui/Toaster";
 
 import { BoardView } from "./views/Board/BoardView";
+import { AutoScheduleView } from "./views/AutoSchedule/AutoScheduleView";
 import { OrdersView } from "./views/Orders/OrdersView";
 import { StatusView } from "./views/Status/StatusView";
 import { DashboardsView } from "./views/Dashboards/DashboardsView";
@@ -25,13 +26,7 @@ const VIEWS: Record<ViewKey, () => React.JSX.Element> = {
   lanes: LanesView,
   locations: LocationsView,
   admin: AdminView,
-  autoschedule: () => (
-    <ComingSoon
-      glyph="⚡"
-      title="Auto-scheduler — coming next"
-      body="The auto-scheduling engine will sequence unscheduled orders by need-by date, then apply batching, order-type priority, and skill match — proposing a lane/day plan you approve before anything commits. It's the next module we build."
-    />
-  ),
+  autoschedule: AutoScheduleView,
   batching: () => (
     <ComingSoon
       glyph="⧉"

@@ -9,6 +9,7 @@ import { repository } from "../data/memoryRepository";
 import { estimatedRunTimeHrs } from "../domain/runtime";
 import { itemFor } from "../domain/capacity";
 import { planFit, remainingQty } from "../domain/carryover";
+import type { ProposalItem } from "../domain/scheduler";
 import { newId, nowISO, toISO } from "../lib/util";
 
 interface Toast { id: string; kind: "info" | "success" | "error"; msg: string; }
@@ -47,6 +48,7 @@ interface AppState {
   moveAssignment: (assignmentId: string, laneId: string, date: string) => void;
   unschedule: (assignmentId: string) => void;
   splitOrder: (orderId: string, parts: { laneId: string; date: string; qty: number }[]) => void;
+  applyProposal: (items: ProposalItem[]) => number;
 
   // status / production
   setStatus: (orderId: string, status: OrderStatus) => void;
@@ -233,6 +235,23 @@ export const useAppStore = create<AppState>((set, get) => {
       ds.orders = ds.orders.map((x) => (x.id === orderId ? { ...x, status: deriveStatus(x, ds.assignments), updatedAt: nowISO() } : x));
       return { ds: { assignments: ds.assignments, orders: ds.orders }, ref: o.productionNo, action: "update", entity: "assignment", summary: `split ${o.productionNo} into ${created.length} segments` };
     }, "Order split across lane-days"),
+
+    applyProposal: (items) => {
+      const placed = items.filter((i) => i.placed && i.laneId && i.date);
+      if (!placed.length) { get().toast("info", "No placements selected to apply."); return 0; }
+      commit((ds) => {
+        const created = placed.map<ScheduleAssignment>((i) => ({
+          id: newId("asg"), orderId: i.orderId, laneId: i.laneId!, date: i.date!,
+          qty: i.qty, runHrs: i.runHrs ?? 0, locked: false, // auto-placed: re-runnable, not a manual lock
+        }));
+        ds.assignments = [...ds.assignments, ...created];
+        const placedIds = new Set(placed.map((i) => i.orderId));
+        ds.orders = ds.orders.map((o) => (placedIds.has(o.id) ? { ...o, status: deriveStatus(o, ds.assignments), updatedAt: nowISO() } : o));
+        return { ds: { assignments: ds.assignments, orders: ds.orders }, ref: `${placed.length} orders`, action: "create", entity: "assignment", summary: `auto-scheduler placed ${placed.length} orders` };
+      });
+      get().toast("success", `Committed ${placed.length} placement${placed.length === 1 ? "" : "s"} to the board`);
+      return placed.length;
+    },
 
     // ---------------- status / production ----------------
     setStatus: (orderId, status) => commit((ds) => {

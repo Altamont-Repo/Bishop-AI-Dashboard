@@ -18,6 +18,7 @@ export function BoardView() {
   const role = useAppStore((s) => s.role);
   const today = useAppStore((s) => s.today);
   const toast = useAppStore((s) => s.toast);
+  const setView = useAppStore((s) => s.setView);
   const scheduleOrder = useAppStore((s) => s.scheduleOrder);
   const moveAssignment = useAppStore((s) => s.moveAssignment);
   const unschedule = useAppStore((s) => s.unschedule);
@@ -98,7 +99,7 @@ export function BoardView() {
           </select>
           <input type="text" placeholder="Search production # or SKU" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
         </div>
-        <button className="btn primary" disabled title="Coming next">Run auto-scheduler</button>
+        {canEdit && <button className="btn primary" onClick={() => setView("autoschedule")}>Run auto-scheduler</button>}
       </div>
 
       <div className={styles.layout}>

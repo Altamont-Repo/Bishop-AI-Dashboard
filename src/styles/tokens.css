@@ -1,39 +1,50 @@
-/* Bishop Lifting brand tokens — ported from the approved wireframe.
-   Brand rule: NO GREEN in status/risk semantics. On-time = neutral/ink,
-   at-risk = amber, late/blocked = Bishop red. (BRD §5.7) */
+/* Bishop Lifting — GREEN + RED primary theme.
+   Green = brand chrome, primary actions, on-time / completed (good).
+   Red   = alerts, active-nav accent, late / danger (attention).
+   Amber = the middle "at-risk" state. Blue is reserved only for the
+   "scheduled" chip so it stays distinct from completed-green. */
 :root {
-  /* Core palette */
-  --navy: #12233d;
-  --navy2: #1b3155;
-  --steel: #3d5a80;
-  --steel-light: #eef2f7;
+  /* Greens (brand / structure) — repurposes the old navy/steel names so
+     every component that referenced them shifts to the green theme. */
+  --navy: #123a26;        /* deep green — sidebar / brand */
+  --navy2: #1c6b41;       /* header text, section titles */
+  --steel: #2f8f57;       /* secondary green — capacity bars, accents */
+  --steel-light: #e7f4ec; /* light green tint — table headers, pills */
+  --green: #2e8b57;
+  --green-dark: #1e6b41;
+
   --line: #d7dee6;
   --line-strong: #b7c2cf;
   --ink: #16233a;
   --ink2: #5b6b80;
-  --paper: #f4f6f9;
+  --paper: #f3f7f4;       /* faint green-gray page background */
   --card: #ffffff;
 
-  /* Semantic */
-  --red: #b3272d;      /* Bishop red — late / primary action */
-  --red-hover: #96201f;
-  --amber: #c98a12;    /* at-risk */
-  --neutral: #2b2b2b;  /* on-time */
+  /* Reds (action / alert) */
+  --red: #c0392b;         /* primary action + late/danger */
+  --red-hover: #a12d21;
 
+  /* Middle state */
+  --amber: #c98a12;
+
+  /* Semantic surfaces */
+  --neutral: #1e7a3d;     /* on-time text/border = green */
   --red-bg: #fbe9e9;
   --amber-bg: #fbf1de;
-  --ok-bg: #eef1f4;
+  --ok-bg: #e3f3e9;       /* on-time surface = light green */
 
-  /* A restrained positive accent used ONLY for completed/active chips
-     (kept muted so the board stays green-free per brand). */
-  --done: #2c6e3a;
-  --done-bg: #e6f2e9;
+  --done: #1e7a3d;        /* completed = green */
+  --done-bg: #e3f3e9;
+
+  /* Scheduled chip — kept blue so it reads apart from completed-green */
+  --blue: #3a6ea5;
+  --blue-bg: #e7edf6;
 
   --radius: 6px;
   --radius-lg: 10px;
-  --shadow-sm: 0 1px 2px rgba(18, 35, 61, .06);
-  --shadow-md: 0 6px 20px rgba(18, 35, 61, .12);
-  --shadow-pop: 0 12px 40px rgba(18, 35, 61, .22);
+  --shadow-sm: 0 1px 2px rgba(18, 58, 38, .06);
+  --shadow-md: 0 6px 20px rgba(18, 58, 38, .12);
+  --shadow-pop: 0 12px 40px rgba(18, 58, 38, .22);
 
   --font: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 
