@@ -15,6 +15,16 @@ export interface SchedulerOptions {
 }
 export const DEFAULT_OPTIONS: SchedulerOptions = { horizonDays: 20, atRiskDays: DEFAULT_THRESHOLDS.atRiskDays };
 
+/** One placed segment of an order (Tier-2 split may produce several). */
+export interface PlacementSegment {
+  laneId: string;
+  laneCode: string;
+  date: string;
+  qty: number;
+  runHrs: number;
+  batched: boolean;
+}
+
 export interface ProposalItem {
   orderId: string;
   productionNo: string;
@@ -31,6 +41,7 @@ export interface ProposalItem {
   runHrs?: number;
   batched: boolean;       // shares a lane-day with a same-item run (setup saved)
   setupSaved: number;     // hours of setup avoided by batching
+  segments?: PlacementSegment[]; // present when an order is split across lane-days
   risk: RiskLevel | "unplaceable";
   reason: string;         // human-readable explanation
 }
@@ -45,7 +56,7 @@ export interface Proposal {
   setupHrsSaved: number;
 }
 
-function riskFor(date: string, neededBy: string, atRiskDays: number): RiskLevel {
+export function riskFor(date: string, neededBy: string, atRiskDays: number): RiskLevel {
   const buffer = differenceInCalendarDays(fromISO(neededBy), fromISO(date));
   if (buffer < 0) return "late";
   if (buffer <= atRiskDays) return "at-risk";

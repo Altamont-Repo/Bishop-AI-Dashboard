@@ -240,10 +240,13 @@ export const useAppStore = create<AppState>((set, get) => {
       const placed = items.filter((i) => i.placed && i.laneId && i.date);
       if (!placed.length) { get().toast("info", "No placements selected to apply."); return 0; }
       commit((ds) => {
-        const created = placed.map<ScheduleAssignment>((i) => ({
-          id: newId("asg"), orderId: i.orderId, laneId: i.laneId!, date: i.date!,
-          qty: i.qty, runHrs: i.runHrs ?? 0, locked: false, // auto-placed: re-runnable, not a manual lock
-        }));
+        // Auto-placed: re-runnable, not a manual lock. Split orders yield one
+        // assignment per segment; whole-order placements yield one.
+        const created = placed.flatMap<ScheduleAssignment>((i) =>
+          (i.segments && i.segments.length
+            ? i.segments.map((s) => ({ id: newId("asg"), orderId: i.orderId, laneId: s.laneId, date: s.date, qty: s.qty, runHrs: s.runHrs, locked: false }))
+            : [{ id: newId("asg"), orderId: i.orderId, laneId: i.laneId!, date: i.date!, qty: i.qty, runHrs: i.runHrs ?? 0, locked: false }]),
+        );
         ds.assignments = [...ds.assignments, ...created];
         const placedIds = new Set(placed.map((i) => i.orderId));
         ds.orders = ds.orders.map((o) => (placedIds.has(o.id) ? { ...o, status: deriveStatus(o, ds.assignments), updatedAt: nowISO() } : o));
