@@ -1,0 +1,52 @@
+.layout { display: flex; gap: 14px; align-items: flex-start; }
+
+.boardWrap { flex: 1; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+.board { border-collapse: collapse; min-width: 760px; width: 100%; }
+.board th {
+  position: sticky; top: 0; background: var(--navy); color: #fff; font-size: 11px;
+  padding: 8px; border: 1px solid #21385c; z-index: 2;
+}
+.laneHead { background: var(--navy2) !important; width: 160px; text-align: left; }
+.board td { border: 1px solid var(--line); vertical-align: top; padding: 4px; height: 78px; }
+.dayCell { width: 132px; background: #fff; transition: background .1s; }
+.dayCell.over { background: #eaf0f8; outline: 2px dashed var(--steel); outline-offset: -3px; }
+
+.laneCell { background: var(--steel-light) !important; font-weight: 700; font-size: 12px; color: var(--navy2); }
+.cap { font-weight: 400; font-size: 10.5px; color: var(--ink2); }
+
+.capBar { height: 4px; border-radius: 2px; background: var(--line-strong); margin-top: 4px; overflow: hidden; }
+.capFill { height: 100%; background: var(--steel); transition: width .15s; }
+.capOver { background: var(--red); }
+
+.block {
+  font-size: 10.5px; border-radius: 4px; padding: 4px 6px; margin-bottom: 3px;
+  border-left: 4px solid var(--neutral); background: var(--ok-bg); cursor: grab; touch-action: none;
+}
+.block:active { cursor: grabbing; }
+.block b { display: block; }
+.block.risk { border-left-color: var(--amber); background: var(--amber-bg); }
+.block.late { border-left-color: var(--red); background: var(--red-bg); }
+.dragging { opacity: .45; }
+
+.override { font-size: 9.5px; font-weight: 700; color: var(--amber); margin-bottom: 3px; }
+.override.down { color: var(--red); }
+
+.noLanes, .drawerEmpty { color: var(--ink2); font-size: 12px; padding: 20px; text-align: center; }
+
+/* Drawer */
+.drawer {
+  width: 210px; flex-shrink: 0; border: 1px solid var(--line); border-radius: var(--radius);
+  background: #fff; padding: 10px; min-height: 200px; transition: background .1s;
+}
+.drawer.drawerOver { background: #eaf0f8; outline: 2px dashed var(--steel); outline-offset: -3px; }
+.drawerHead { font-size: 12px; font-weight: 700; color: var(--navy2); margin-bottom: 10px; display: flex; align-items: center; }
+.card {
+  border: 1px solid var(--line); border-left: 4px solid var(--steel); border-radius: 4px;
+  padding: 7px 8px; margin-bottom: 7px; cursor: grab; background: #fff; touch-action: none;
+}
+.card:hover { box-shadow: var(--shadow-sm); }
+.cardTop { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.cardMeta { font-size: 10.5px; color: var(--ink2); margin-top: 2px; }
+
+.legend { display: flex; gap: 16px; margin-top: 12px; font-size: 11px; color: var(--ink2); align-items: center; flex-wrap: wrap; }
+.dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; }

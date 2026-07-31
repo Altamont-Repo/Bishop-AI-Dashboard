@@ -1,0 +1,4 @@
+.progressWrap { display: flex; align-items: center; gap: 8px; }
+.progressBar { width: 90px; height: 6px; background: var(--line-strong); border-radius: 3px; overflow: hidden; }
+.progressFill { height: 100%; background: var(--steel); }
+.progressNum { font-size: 11px; color: var(--ink2); font-variant-numeric: tabular-nums; }
