@@ -6,7 +6,7 @@ import type {
 import type { ViewKey } from "../auth/permissions";
 import { can } from "../auth/permissions";
 import { repository } from "../data/memoryRepository";
-import { estimatedRunTimeHrs } from "../domain/runtime";
+import { estimatedRunTimeHrs, runOnlyHrs, setupHrs } from "../domain/runtime";
 import { itemFor } from "../domain/capacity";
 import { planFit, remainingQty } from "../domain/carryover";
 import type { ProposalItem } from "../domain/scheduler";
@@ -49,6 +49,7 @@ interface AppState {
   unschedule: (assignmentId: string) => void;
   splitOrder: (orderId: string, parts: { laneId: string; date: string; qty: number }[]) => void;
   applyProposal: (items: ProposalItem[]) => number;
+  applyBatch: (orderIds: string[], laneId: string, date: string) => number;
 
   // status / production
   setStatus: (orderId: string, status: OrderStatus) => void;
@@ -254,6 +255,28 @@ export const useAppStore = create<AppState>((set, get) => {
       });
       get().toast("success", `Committed ${placed.length} placement${placed.length === 1 ? "" : "s"} to the board`);
       return placed.length;
+    },
+
+    applyBatch: (orderIds, laneId, date) => {
+      if (orderIds.length < 2) return 0;
+      commit((ds) => {
+        // Batch onto one lane-day sharing a single setup: the first order carries
+        // setup + its run, the rest carry run-only — so booked hours reflect the
+        // saved setup (matches the scheduler's batching model).
+        const created = orderIds.map<ScheduleAssignment>((oid, idx) => {
+          const o = ds.orders.find((x) => x.id === oid)!;
+          const item = itemFor(ds, o)!;
+          const runHrs = (idx === 0 ? setupHrs(item) : 0) + runOnlyHrs(item, o.qtyNeeded);
+          return { id: newId("asg"), orderId: oid, laneId, date, qty: o.qtyNeeded, runHrs, locked: true };
+        });
+        ds.assignments = [...ds.assignments, ...created];
+        const ids = new Set(orderIds);
+        ds.orders = ds.orders.map((o) => (ids.has(o.id) ? { ...o, status: deriveStatus(o, ds.assignments), updatedAt: nowISO() } : o));
+        const lane = ds.lanes.find((l) => l.id === laneId);
+        return { ds: { assignments: ds.assignments, orders: ds.orders }, ref: `${orderIds.length} orders`, action: "create", entity: "assignment", summary: `batched ${orderIds.length} orders onto ${lane?.code ?? "lane"}` };
+      });
+      get().toast("success", `Batched ${orderIds.length} orders — one shared setup`);
+      return orderIds.length;
     },
 
     // ---------------- status / production ----------------

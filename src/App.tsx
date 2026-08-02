@@ -8,6 +8,7 @@ import { Toaster } from "./components/ui/Toaster";
 
 import { BoardView } from "./views/Board/BoardView";
 import { AutoScheduleView } from "./views/AutoSchedule/AutoScheduleView";
+import { BatchingView } from "./views/Batching/BatchingView";
 import { OrdersView } from "./views/Orders/OrdersView";
 import { StatusView } from "./views/Status/StatusView";
 import { DashboardsView } from "./views/Dashboards/DashboardsView";
@@ -15,7 +16,6 @@ import { ItemsView } from "./views/Items/ItemsView";
 import { LanesView } from "./views/Lanes/LanesView";
 import { LocationsView } from "./views/Locations/LocationsView";
 import { AdminView } from "./views/Admin/AdminView";
-import { ComingSoon } from "./views/ComingSoon";
 
 const VIEWS: Record<ViewKey, () => React.JSX.Element> = {
   board: BoardView,
@@ -27,13 +27,7 @@ const VIEWS: Record<ViewKey, () => React.JSX.Element> = {
   locations: LocationsView,
   admin: AdminView,
   autoschedule: AutoScheduleView,
-  batching: () => (
-    <ComingSoon
-      glyph="⧉"
-      title="Batching recommendations — coming next"
-      body="Batching groups like orders within a time window to save setup time. It ships alongside the auto-scheduler in the next phase; until then you can batch manually on the scheduling board."
-    />
-  ),
+  batching: BatchingView,
 };
 
 export function App() {

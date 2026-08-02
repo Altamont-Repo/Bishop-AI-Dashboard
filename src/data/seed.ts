@@ -103,6 +103,12 @@ const orders: Order[] = [
   order("RS-0010", "loc_houston", "TF-FG03X010", 30, "Stock", "Medium", TUE, 15000, "Completed", 30),
   order("FW-0003", "loc_houston", "EEF3904P06", 40, "Stock", "Medium", WED, 18000, "Completed", 40),
   order("SP-0002", "loc_houston", "SP-1", 6, "Customer", "High", THU, 6000, "Scheduled"),
+  // Unscheduled same-item clusters at Houston to demonstrate batching.
+  order("RS-0004", "loc_houston", "TFG07X020", 30, "Customer", "Medium", day(8), 14000, "Pending"),
+  order("RS-0005", "loc_houston", "TFG07X020", 20, "Stock", "Low", day(9), 9000, "Pending"),
+  order("RS-0006", "loc_houston", "TFG07X020", 15, "Customer", "Medium", day(10), 7000, "Pending"),
+  order("FW-0005", "loc_houston", "FS-2010", 15, "Customer", "High", day(8), 11000, "Pending"),
+  order("FW-0006", "loc_houston", "FS-2010", 20, "Stock", "Medium", day(9), 12000, "Pending"),
 ];
 const orderBy = (n: string) => orders.find((o) => o.productionNo === n)!;
 
