@@ -8,6 +8,7 @@ import { assignmentsFor, isEligible, itemFor, laneDayLoad } from "../../domain/c
 import { orderFitsSingleDay } from "../../domain/carryover";
 import { classifyRisk, RISK_TAG } from "../../domain/risk";
 import { fmtHrs, fmtShort, fromISO, workWeek } from "../../lib/util";
+import { printWeekBoard } from "../../lib/printBoard";
 import styles from "./Board.module.css";
 
 type Filters = { type: string; importance: string; laneType: string; q: string };
@@ -17,6 +18,7 @@ export function BoardView() {
   const locationId = useAppStore((s) => s.locationId);
   const role = useAppStore((s) => s.role);
   const today = useAppStore((s) => s.today);
+  const currentUserName = useAppStore((s) => s.currentUserName);
   const toast = useAppStore((s) => s.toast);
   const setView = useAppStore((s) => s.setView);
   const scheduleOrder = useAppStore((s) => s.scheduleOrder);
@@ -44,6 +46,11 @@ export function BoardView() {
   const unscheduled = ds.orders.filter(
     (o) => o.locationId === locationId && o.status !== "Completed" && assignmentsFor(ds, o.id).length === 0 && matches(o),
   );
+
+  const onPrint = () => {
+    const ok = printWeekBoard({ ds, locationId, lanes, days, unscheduled, today, plannerName: currentUserName });
+    if (!ok) toast("error", "Couldn't open the print view — allow pop-ups for this site and try again.");
+  };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -99,7 +106,10 @@ export function BoardView() {
           </select>
           <input type="text" placeholder="Search production # or SKU" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
         </div>
-        {canEdit && <button className="btn primary" onClick={() => setView("autoschedule")}>Run auto-scheduler</button>}
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn" onClick={onPrint}>Print week</button>
+          {canEdit && <button className="btn primary" onClick={() => setView("autoschedule")}>Run auto-scheduler</button>}
+        </div>
       </div>
 
       <div className={styles.layout}>
