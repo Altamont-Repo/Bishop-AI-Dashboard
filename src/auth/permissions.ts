@@ -33,8 +33,8 @@ export const CAPABILITIES: Record<Role, Capabilities> = {
     editOrders: true,
     runScheduler: true,
     updateStatus: true,
-    overrideCapacity: false,
-    editMasters: false,     // can view masters, edits are admin/manager
+    overrideCapacity: true, // planner manages per-day lane capacity
+    editMasters: true,      // planner maintains item & lane masters (items CRUD, capacity calendar)
     manageUsers: false,
   },
   "Shift Operator": {

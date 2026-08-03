@@ -4,7 +4,7 @@ import { can } from "../../auth/permissions";
 import type { Order, OrderStatus } from "../../domain/types";
 import { assignmentsFor } from "../../domain/capacity";
 import { remainingQty } from "../../domain/carryover";
-import { fmtMoney } from "../../lib/util";
+import { fmtMoney, fmtShort, fromISO, workWeek } from "../../lib/util";
 import { Kpi } from "../../components/ui/Kpi";
 import { StatusTag } from "../../components/ui/Tag";
 import styles from "./Status.module.css";
@@ -15,6 +15,13 @@ const NEXT: Partial<Record<OrderStatus, { to: OrderStatus; label: string; primar
   WIP: { to: "Completed", label: "Mark complete", primary: true },
 };
 
+type Tab = "today" | "week" | "all";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+  { key: "all", label: "All orders" },
+];
+
 export function StatusView() {
   const ds = useAppStore((s) => s.ds);
   const locationId = useAppStore((s) => s.locationId);
@@ -24,6 +31,9 @@ export function StatusView() {
   const recordProduced = useAppStore((s) => s.recordProduced);
   const carryOver = useAppStore((s) => s.carryOver);
   const canUpdate = can(role).updateStatus;
+
+  const [tab, setTab] = useState<Tab>("today");
+  const weekDays = useMemo(() => new Set(workWeek(fromISO(today))), [today]);
 
   const orders = useMemo(() => ds.orders.filter((o) => o.locationId === locationId), [ds.orders, locationId]);
   const completedToday = orders.filter((o) => o.status === "Completed" && o.updatedAt.slice(0, 10) === today);
@@ -36,7 +46,35 @@ export function StatusView() {
     valueToday: completedToday.reduce((s, o) => s + o.value, 0),
   };
 
-  const active = orders.filter((o) => o.status !== "Completed");
+  // Which orders belong to each tab, by their assignment dates.
+  const inScope = (o: Order, scope: Tab): boolean => {
+    if (scope === "all") return true;
+    const dates = assignmentsFor(ds, o.id).map((a) => a.date);
+    return scope === "today" ? dates.includes(today) : dates.some((d) => weekDays.has(d));
+  };
+
+  const counts: Record<Tab, number> = {
+    today: orders.filter((o) => inScope(o, "today")).length,
+    week: orders.filter((o) => inScope(o, "week")).length,
+    all: orders.length,
+  };
+
+  // Rows for the active tab, ordered by the earliest relevant scheduled day.
+  const rows = useMemo(() => {
+    const scoped = orders.filter((o) => inScope(o, tab));
+    const firstDate = (o: Order) => {
+      const dates = assignmentsFor(ds, o.id).map((a) => a.date).sort();
+      return dates[0] ?? "9999-12-31"; // unscheduled sinks to the bottom
+    };
+    return [...scoped].sort((a, b) => firstDate(a).localeCompare(firstDate(b)) || a.productionNo.localeCompare(b.productionNo));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, tab, ds, today, weekDays]);
+
+  const emptyMsg: Record<Tab, string> = {
+    today: "Nothing scheduled to run today.",
+    week: "Nothing scheduled this week.",
+    all: "No orders at this location yet.",
+  };
 
   return (
     <>
@@ -47,18 +85,37 @@ export function StatusView() {
         <Kpi label="Value shipped (today)" value={fmtMoney(kpis.valueToday)} delta={`${kpis.completeToday} completed`} deltaDir="up" />
       </div>
 
+      <div className="tab-strip">
+        {TABS.map((t) => (
+          <button key={t.key} className={`tab-btn ${tab === t.key ? "active" : ""}`} onClick={() => setTab(t.key)}>
+            {t.label} <span className="badge-count">{counts[t.key]}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="card flush">
         <table>
           <thead>
-            <tr><th>Production #</th><th>SKU</th><th>Lane</th><th>Progress</th><th>Status</th>{canUpdate && <th>Update</th>}</tr>
+            <tr><th>Production #</th><th>SKU</th><th>Lane</th><th>Scheduled</th><th>Progress</th><th>Status</th>{canUpdate && <th>Update</th>}</tr>
           </thead>
           <tbody>
-            {active.map((o) => <Row key={o.id} order={o} canUpdate={canUpdate} onStatus={setStatus} onProduced={recordProduced} onCarry={carryOver} laneLabel={laneLabel(ds, o)} />)}
-            {!active.length && <tr><td colSpan={canUpdate ? 6 : 5} className="muted" style={{ padding: 20, textAlign: "center" }}>Nothing in progress — all caught up.</td></tr>}
+            {rows.map((o) => (
+              <Row
+                key={o.id} order={o} canUpdate={canUpdate}
+                onStatus={setStatus} onProduced={recordProduced} onCarry={carryOver}
+                laneLabel={laneLabel(ds, o)} whenLabel={whenLabel(ds, o, today)}
+              />
+            ))}
+            {!rows.length && <tr><td colSpan={canUpdate ? 7 : 6} className="muted" style={{ padding: 20, textAlign: "center" }}>{emptyMsg[tab]}</td></tr>}
           </tbody>
         </table>
       </div>
-      <div className="hint">Operator view — advance each order along the lifecycle (Not started → Scheduled → WIP → Complete) and record quantity produced. When produced qty reaches the order qty the order auto-completes; leftover quantity can be carried to the next available day.</div>
+      <div className="hint">
+        {tab === "today" && "Orders with production scheduled on today's date — the floor's work for today."}
+        {tab === "week" && "Orders with production scheduled anywhere in the current work week (Mon–Fri)."}
+        {tab === "all" && "Every order at this location across the full lifecycle, including completed."}
+        {" "}Advance each order along Not started → Scheduled → WIP → Complete and record quantity produced; leftover quantity can be carried to the next available day.
+      </div>
     </>
   );
 }
@@ -70,8 +127,17 @@ function laneLabel(ds: ReturnType<typeof useAppStore.getState>["ds"], o: Order):
   return a.length > 1 ? `${a.length} segments` : `${lane?.code ?? "?"}`;
 }
 
-function Row({ order, canUpdate, onStatus, onProduced, onCarry, laneLabel }: {
-  order: Order; canUpdate: boolean; laneLabel: string;
+/** Scheduled-day label: "—" if unscheduled, "Today" when it runs today, else the date (with +N for multi-day). */
+function whenLabel(ds: ReturnType<typeof useAppStore.getState>["ds"], o: Order, today: string): string {
+  const dates = [...new Set(assignmentsFor(ds, o.id).map((a) => a.date))].sort();
+  if (!dates.length) return "—";
+  if (dates.includes(today)) return "Today";
+  const extra = dates.length > 1 ? ` +${dates.length - 1}` : "";
+  return `${fmtShort(dates[0])}${extra}`;
+}
+
+function Row({ order, canUpdate, onStatus, onProduced, onCarry, laneLabel, whenLabel }: {
+  order: Order; canUpdate: boolean; laneLabel: string; whenLabel: string;
   onStatus: (id: string, s: OrderStatus) => void;
   onProduced: (id: string, q: number) => void;
   onCarry: (id: string) => number;
@@ -85,6 +151,7 @@ function Row({ order, canUpdate, onStatus, onProduced, onCarry, laneLabel }: {
       <td><b>{order.productionNo}</b></td>
       <td>{order.itemNumber}</td>
       <td className="muted">{laneLabel}</td>
+      <td className={whenLabel === "Today" ? "" : "muted"} style={whenLabel === "Today" ? { fontWeight: 700 } : undefined}>{whenLabel}</td>
       <td>
         <div className={styles.progressWrap}>
           <div className={styles.progressBar}><div className={styles.progressFill} style={{ width: `${Math.round((order.qtyProduced / order.qtyNeeded) * 100)}%` }} /></div>

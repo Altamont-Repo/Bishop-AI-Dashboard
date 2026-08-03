@@ -137,7 +137,7 @@ const assignments: ScheduleAssignment[] = [
 // Users (wireframe Admin screen)
 // ---------------------------------------------------------------------------
 const users: User[] = [
-  { id: "user_jp", name: "J. Patel", role: "Production Planner", locationScope: ["loc_houston"], active: true },
+  { id: "user_jp", name: "Gaurav Malhotra", role: "Production Planner", locationScope: ["loc_houston"], active: true },
   { id: "user_ma", name: "M. Alvarez", role: "Shift Operator", locationScope: ["loc_houston"], active: true },
   { id: "user_do", name: "D. Osei", role: "Plant Manager", locationScope: ["loc_houston"], active: true },
   { id: "user_ar", name: "A. Reyes", role: "Admin", locationScope: [], active: true },

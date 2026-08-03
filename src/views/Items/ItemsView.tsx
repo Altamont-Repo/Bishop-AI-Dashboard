@@ -3,12 +3,26 @@ import { useAppStore } from "../../store/useAppStore";
 import { can } from "../../auth/permissions";
 import type { Item, ItemType } from "../../domain/types";
 import { fmtMoney } from "../../lib/util";
+import { useSort, type Accessor } from "../../lib/useSort";
 import { Modal } from "../../components/ui/Modal";
+import { SortableTh } from "../../components/ui/SortableTh";
 import { Field } from "../Orders/NewOrderModal";
 
 const BLANK: Omit<Item, "id"> = {
   itemNumber: "", description: "", type: "Round", prodTimePerUnitMins: 5,
   setupTimeMins: 15, listPrice: 0, hardwareNeeded: false, specialReqs: [],
+};
+
+// Module-level so the accessor map keeps a stable identity across renders.
+const ITEM_SORT: Record<string, Accessor<Item>> = {
+  itemNumber: (i) => i.itemNumber.toLowerCase(),
+  description: (i) => i.description.toLowerCase(),
+  type: (i) => i.type,
+  prodTimePerUnitMins: (i) => i.prodTimePerUnitMins,
+  setupTimeMins: (i) => i.setupTimeMins,
+  listPrice: (i) => i.listPrice,
+  hardwareNeeded: (i) => i.hardwareNeeded,
+  specialReqs: (i) => i.specialReqs.join(", ").toLowerCase(),
 };
 
 export function ItemsView() {
@@ -23,10 +37,11 @@ export function ItemsView() {
   const [type, setType] = useState("All");
   const [editing, setEditing] = useState<Item | "new" | null>(null);
 
-  const rows = useMemo(() => items.filter((i) =>
+  const filtered = useMemo(() => items.filter((i) =>
     (type === "All" || i.type === type) &&
     (!q || `${i.itemNumber} ${i.description}`.toLowerCase().includes(q.toLowerCase())),
   ), [items, q, type]);
+  const { sorted: rows, sortKey, sortDir, toggle } = useSort(filtered, ITEM_SORT, "itemNumber");
 
   return (
     <>
@@ -43,7 +58,17 @@ export function ItemsView() {
       <div className="card flush">
         <table>
           <thead>
-            <tr><th>Item #</th><th>Description</th><th>Type</th><th>Prod. time/unit</th><th>Setup/run</th><th>List price</th><th>Hardware</th><th>Special req.</th>{canEdit && <th></th>}</tr>
+            <tr>
+              <SortableTh label="Item #" col="itemNumber" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Description" col="description" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Type" col="type" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Prod. time/unit" col="prodTimePerUnitMins" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Setup/run" col="setupTimeMins" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="List price" col="listPrice" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Hardware" col="hardwareNeeded" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Special req." col="specialReqs" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              {canEdit && <th></th>}
+            </tr>
           </thead>
           <tbody>
             {rows.map((i) => (
@@ -56,7 +81,7 @@ export function ItemsView() {
                 <td>{fmtMoney(i.listPrice)}</td>
                 <td>{i.hardwareNeeded ? "Yes" : "No"}</td>
                 <td className="muted">{i.specialReqs.join(", ") || "—"}</td>
-                {canEdit && <td className="nowrap"><button className="btn ghost sm" onClick={() => setEditing(i)}>Edit</button><button className="btn ghost sm" onClick={() => deleteItem(i.id)}>Delete</button></td>}
+                {canEdit && <td className="nowrap"><button className="btn ghost sm" onClick={() => setEditing(i)}>Edit</button><button className="btn ghost sm" onClick={() => { if (confirm(`Delete item ${i.itemNumber}? This can't be undone.`)) deleteItem(i.id); }}>Delete</button></td>}
               </tr>
             ))}
             {!rows.length && <tr><td colSpan={canEdit ? 9 : 8} className="muted" style={{ padding: 20, textAlign: "center" }}>No items match.</td></tr>}

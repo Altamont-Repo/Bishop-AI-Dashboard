@@ -129,7 +129,7 @@ export const useAppStore = create<AppState>((set, get) => {
     },
     ready: false,
     role: "Production Planner",
-    currentUserName: "J. Patel",
+    currentUserName: "Gaurav Malhotra",
     locationId: "loc_houston",
     view: "board",
     today: toISO(new Date()),
