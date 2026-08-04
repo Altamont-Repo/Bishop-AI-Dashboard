@@ -21,6 +21,8 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "week", label: "This week" },
   { key: "all", label: "All orders" },
 ];
+// Suffix appended to KPI labels so each view's scope is unambiguous.
+const SCOPE_SUFFIX: Record<Tab, string> = { today: " (today)", week: " (this week)", all: " (all)" };
 
 export function StatusView() {
   const ds = useAppStore((s) => s.ds);
@@ -36,15 +38,6 @@ export function StatusView() {
   const weekDays = useMemo(() => new Set(workWeek(fromISO(today))), [today]);
 
   const orders = useMemo(() => ds.orders.filter((o) => o.locationId === locationId), [ds.orders, locationId]);
-  const completedToday = orders.filter((o) => o.status === "Completed" && o.updatedAt.slice(0, 10) === today);
-
-  const kpis = {
-    notStarted: orders.filter((o) => o.status === "Pending").length,
-    scheduled: orders.filter((o) => o.status === "Scheduled").length,
-    wip: orders.filter((o) => o.status === "WIP").length,
-    completeToday: completedToday.length,
-    valueToday: completedToday.reduce((s, o) => s + o.value, 0),
-  };
 
   // Which orders belong to each tab, by their assignment dates.
   const inScope = (o: Order, scope: Tab): boolean => {
@@ -70,6 +63,17 @@ export function StatusView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders, tab, ds, today, weekDays]);
 
+  // KPIs summarise the active tab's scope. Value scheduled = total $ of the
+  // orders in view that are actually placed on the board (have an assignment).
+  const scheduledInScope = rows.filter((o) => assignmentsFor(ds, o.id).length > 0);
+  const kpis = {
+    notStarted: rows.filter((o) => o.status === "Pending").length,
+    scheduled: rows.filter((o) => o.status === "Scheduled").length,
+    wip: rows.filter((o) => o.status === "WIP").length,
+    valueScheduled: scheduledInScope.reduce((s, o) => s + o.value, 0),
+    scheduledCount: scheduledInScope.length,
+  };
+
   const emptyMsg: Record<Tab, string> = {
     today: "Nothing scheduled to run today.",
     week: "Nothing scheduled this week.",
@@ -79,10 +83,10 @@ export function StatusView() {
   return (
     <>
       <div className="grid4" style={{ marginBottom: 16 }}>
-        <Kpi label="Not started" value={kpis.notStarted} />
-        <Kpi label="Scheduled" value={kpis.scheduled} />
-        <Kpi label="In progress" value={kpis.wip} />
-        <Kpi label="Value shipped (today)" value={fmtMoney(kpis.valueToday)} delta={`${kpis.completeToday} completed`} deltaDir="up" />
+        <Kpi label={`Not scheduled${SCOPE_SUFFIX[tab]}`} value={kpis.notStarted} />
+        <Kpi label={`Scheduled${SCOPE_SUFFIX[tab]}`} value={kpis.scheduled} />
+        <Kpi label={`In progress${SCOPE_SUFFIX[tab]}`} value={kpis.wip} />
+        <Kpi label={`Value scheduled${SCOPE_SUFFIX[tab]}`} value={fmtMoney(kpis.valueScheduled)} delta={`${kpis.scheduledCount} order${kpis.scheduledCount === 1 ? "" : "s"} on the board`} deltaDir="up" />
       </div>
 
       <div className="tab-strip">
@@ -114,7 +118,7 @@ export function StatusView() {
         {tab === "today" && "Orders with production scheduled on today's date — the floor's work for today."}
         {tab === "week" && "Orders with production scheduled anywhere in the current work week (Mon–Fri)."}
         {tab === "all" && "Every order at this location across the full lifecycle, including completed."}
-        {" "}Advance each order along Not started → Scheduled → WIP → Complete and record quantity produced; leftover quantity can be carried to the next available day.
+        {" "}Advance each order along Not scheduled → Scheduled → WIP → Complete and record quantity produced; leftover quantity can be carried to the next available day.
       </div>
     </>
   );

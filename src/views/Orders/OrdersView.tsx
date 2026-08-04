@@ -8,6 +8,7 @@ import { classifyRisk } from "../../domain/risk";
 import { fmtDate, fmtHrs, fmtMoney } from "../../lib/util";
 import { ImportanceTag, RiskTag, StatusTag } from "../../components/ui/Tag";
 import { NewOrderModal } from "./NewOrderModal";
+import { EditOrderModal } from "./EditOrderModal";
 import { PasteModal } from "./PasteModal";
 import { SplitModal } from "./SplitModal";
 
@@ -27,6 +28,7 @@ export function OrdersView() {
   const [showNew, setShowNew] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
   const [splitId, setSplitId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const rows = useMemo(() => ds.orders.filter((o) => {
     if (o.locationId !== locationId) return false;
@@ -101,6 +103,7 @@ export function OrdersView() {
                   </td>
                   {canEdit && (
                     <td className="nowrap">
+                      <button className="btn ghost sm" onClick={() => setEditId(o.id)}>Edit</button>
                       <button className="btn ghost sm" onClick={() => setSplitId(o.id)} disabled={o.status === "Completed"}>Split</button>
                       <button className="btn ghost sm" onClick={() => toggleFlag(o.id, "manual review")}>{o.flagged ? "Unflag" : "Flag"}</button>
                       <button className="btn ghost sm" onClick={() => deleteOrder(o.id)}>Delete</button>
@@ -116,6 +119,7 @@ export function OrdersView() {
       <div className="hint">Selecting a SKU on a new order auto-fills product type, setup time, and run time from the item master. “Assigned” is system-maintained once an order is placed on the board. Importance and order type both feed the (upcoming) auto-scheduler's priority order.</div>
 
       {showNew && <NewOrderModal onClose={() => setShowNew(false)} />}
+      {editId && <EditOrderModal orderId={editId} onClose={() => setEditId(null)} />}
       {showPaste && <PasteModal onClose={() => setShowPaste(false)} />}
       {splitId && <SplitModal orderId={splitId} onClose={() => setSplitId(null)} />}
     </>

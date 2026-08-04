@@ -10,7 +10,7 @@ const STATUS_CLASS: Record<OrderStatus, string> = {
 };
 
 export function StatusTag({ status }: { status: OrderStatus }) {
-  return <span className={`tag ${STATUS_CLASS[status]}`}>{status === "Pending" ? "Not started" : status}</span>;
+  return <span className={`tag ${STATUS_CLASS[status]}`}>{status === "Pending" ? "Not scheduled" : status}</span>;
 }
 
 export function RiskTag({ level }: { level: RiskLevel }) {
