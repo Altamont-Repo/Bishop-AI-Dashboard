@@ -136,9 +136,8 @@ export function OrdersView() {
                   <td><StatusTag status={o.status} /></td>
                   <td className="muted">{assignedLabel(o)}</td>
                   <td>
-                    {hasRisk
-                      ? (o.riskAck ? <span className="muted" title="At-risk indicator dismissed by planner">dismissed</span> : <RiskTag level={level} />)
-                      : o.flagged ? <span className="tag late" title={o.flagReason}>flagged</span>
+                    {hasRisk && !o.riskAck ? <RiskTag level={level} />
+                      : !hasRisk && o.flagged ? <span className="tag late" title={o.flagReason}>flagged</span>
                       : <span className="muted">—</span>}
                   </td>
                   {canEdit && (
@@ -146,7 +145,7 @@ export function OrdersView() {
                       <button className="btn ghost sm" onClick={() => setEditId(o.id)}>Edit</button>
                       <button className="btn ghost sm" onClick={() => setSplitId(o.id)} disabled={o.status === "Completed"}>Split</button>
                       {hasRisk
-                        ? <button className="btn ghost sm" onClick={() => toggleRiskAck(o.id)}>{o.riskAck ? "Restore risk" : "Dismiss risk"}</button>
+                        ? <button className="btn ghost sm" onClick={() => toggleRiskAck(o.id)}>Flag</button>
                         : <button className="btn ghost sm" onClick={() => toggleFlag(o.id, "manual review")}>{o.flagged ? "Unflag" : "Flag"}</button>}
                       <button className="btn ghost sm" onClick={() => { if (confirm(`Delete order ${o.productionNo}? It will be removed from the board and can't be undone.`)) deleteOrder(o.id); }}>Delete</button>
                     </td>
