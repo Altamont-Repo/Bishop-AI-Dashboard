@@ -311,7 +311,7 @@ export const useAppStore = create<AppState>((set, get) => {
       if (!item) return 0;
       const lastDate = ds.assignments.filter((a) => a.orderId === orderId).reduce((m, a) => (a.date > m ? a.date : m), get().today);
       const laneId = ds.assignments.find((a) => a.orderId === orderId)?.laneId
-        ?? ds.lanes.find((l) => l.locationId === o.locationId && l.type === item.type)?.id;
+        ?? ds.lanes.find((l) => l.locationId === o.locationId && l.types.includes(item.type))?.id;
       if (!laneId) { get().toast("error", "No eligible lane for carry-over."); return 0; }
       const segs = planFit(ds, laneId, item, rem, lastDate);
       if (!segs.length) { get().toast("error", "No capacity in horizon for carry-over."); return 0; }

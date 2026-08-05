@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 export type ItemType = "Round" | "Flat" | "Special";
-export type LaneType = ItemType; // a lane serves one item type
+export type LaneType = ItemType; // a lane can serve one or more item types
 export type OrderType = "Stock" | "Customer" | "eComm";
 export type Importance = "High" | "Medium" | "Low";
 export type OrderStatus = "Pending" | "Scheduled" | "WIP" | "Completed";
@@ -28,8 +28,9 @@ export interface Lane {
   locationId: string;
   code: string;           // e.g. "R-01"
   name: string;           // e.g. "Round Sling Table 1"
-  type: LaneType;
+  types: LaneType[];      // item types this lane can run (multi-functional)
   defaultCapacityHrs: number; // hard cap, hours/day (already × shifts)
+  overtimeHrs: number;    // extra hours allowed beyond the hard cap on a normal day
   shiftsPerDay: number;
   skillTags: string[];    // matched against item.specialReqs
 }

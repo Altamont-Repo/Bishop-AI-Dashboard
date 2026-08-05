@@ -31,7 +31,7 @@ export function BoardView() {
 
   const days = useMemo(() => workWeek(addDays(fromISO(today), weekOffset * 7)), [today, weekOffset]);
   const lanes = useMemo(
-    () => ds.lanes.filter((l) => l.locationId === locationId && (filters.laneType === "All" || l.type === filters.laneType)),
+    () => ds.lanes.filter((l) => l.locationId === locationId && (filters.laneType === "All" || l.types.includes(filters.laneType as Lane["types"][number]))),
     [ds.lanes, locationId, filters.laneType],
   );
 
@@ -72,6 +72,12 @@ export function BoardView() {
     const order = ds.orders.find((o) => o.id === orderId);
     if (!order) return;
     const item = itemFor(ds, order)!;
+
+    // Production has already started on this order — moving it can disrupt the
+    // floor, so require an explicit confirmation before rescheduling.
+    if (order.status === "WIP" && !window.confirm(
+      `${order.productionNo} is already in progress (WIP). Moving it may disrupt active production.\n\nMove it anyway?`,
+    )) return;
 
     const elig = isEligible(lane, item);
     if (!elig.ok) { toast("error", `Can't place ${order.productionNo}: ${elig.reason}`); return; }
@@ -126,7 +132,7 @@ export function BoardView() {
                 <tr key={lane.id}>
                   <td className={styles.laneCell}>
                     {lane.name}<br />
-                    <span className={styles.cap}>{lane.defaultCapacityHrs} hr hard cap · {lane.type}</span>
+                    <span className={styles.cap}>{lane.defaultCapacityHrs} hr hard cap{lane.overtimeHrs ? ` +${lane.overtimeHrs} OT` : ""} · {lane.types.join(" / ")}</span>
                   </td>
                   {days.map((date) => (
                     <Cell key={date} lane={lane} date={date} canEdit={canEdit} today={today} />

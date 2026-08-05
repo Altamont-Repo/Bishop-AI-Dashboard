@@ -24,28 +24,28 @@ const locations = [houston, hurst, casselberry, milwaukee, lafayette];
 // ---------------------------------------------------------------------------
 // Lanes (wireframe Lane master — custom per location; Milwaukee has no Round)
 // ---------------------------------------------------------------------------
-function lane(locationId: string, code: string, name: string, type: Lane["type"], cap: number, skillTags: string[] = []): Lane {
-  return { id: `lane_${locationId}_${code}`, locationId, code, name, type, defaultCapacityHrs: cap, shiftsPerDay: 1, skillTags };
+function lane(locationId: string, code: string, name: string, types: Lane["types"], cap: number, skillTags: string[] = [], overtimeHrs = 0.5): Lane {
+  return { id: `lane_${locationId}_${code}`, locationId, code, name, types, defaultCapacityHrs: cap, overtimeHrs, shiftsPerDay: 1, skillTags };
 }
 const lanes: Lane[] = [
-  // Houston — 4 tables (1 Round, 1 Flat, 2 Special)
-  lane(houston.id, "R-01", "Round Sling Table 1", "Round", 8),
-  lane(houston.id, "F-01", "Flat Web Table 1", "Flat", 8),
-  lane(houston.id, "SP-01", "Special Table 1", "Special", 6, ["rig-cert"]),
-  lane(houston.id, "SP-02", "Special Table 2", "Special", 6, ["rig-cert"]),
+  // Houston — 4 tables (1 Round, 1 Flat/Round combo, 2 Special)
+  lane(houston.id, "R-01", "Round Sling Table 1", ["Round"], 8),
+  lane(houston.id, "F-01", "Flat Web Table 1", ["Flat", "Round"], 8),
+  lane(houston.id, "SP-01", "Special Table 1", ["Special"], 6, ["rig-cert"]),
+  lane(houston.id, "SP-02", "Special Table 2", ["Special", "Flat"], 6, ["rig-cert"]),
   // Hurst — 3 tables
-  lane(hurst.id, "R-01", "Round Sling Table 1", "Round", 8),
-  lane(hurst.id, "F-01", "Flat Web Table 1", "Flat", 8),
-  lane(hurst.id, "SP-01", "Special Table 1", "Special", 6),
+  lane(hurst.id, "R-01", "Round Sling Table 1", ["Round"], 8),
+  lane(hurst.id, "F-01", "Flat Web Table 1", ["Flat"], 8),
+  lane(hurst.id, "SP-01", "Special Table 1", ["Special"], 6),
   // Casselberry — 2 tables
-  lane(casselberry.id, "R-01", "Round Sling Table 1", "Round", 8),
-  lane(casselberry.id, "F-01", "Flat Web Table 1", "Flat", 8),
+  lane(casselberry.id, "R-01", "Round Sling Table 1", ["Round"], 8),
+  lane(casselberry.id, "F-01", "Flat Web Table 1", ["Flat"], 8),
   // Milwaukee — 2 tables, NO Round
-  lane(milwaukee.id, "F-01", "Flat Web Table 1", "Flat", 8),
-  lane(milwaukee.id, "SP-01", "Special Table 1", "Special", 6),
+  lane(milwaukee.id, "F-01", "Flat Web Table 1", ["Flat"], 8),
+  lane(milwaukee.id, "SP-01", "Special Table 1", ["Special"], 6),
   // Lafayette — 2 Flat tables
-  lane(lafayette.id, "F-01", "Flat Web Table 1", "Flat", 8),
-  lane(lafayette.id, "F-02", "Flat Web Table 2", "Flat", 8),
+  lane(lafayette.id, "F-01", "Flat Web Table 1", ["Flat"], 8),
+  lane(lafayette.id, "F-02", "Flat Web Table 2", ["Flat"], 8),
 ];
 const HL = (code: string) => lanes.find((l) => l.locationId === "loc_houston" && l.code === code)!.id;
 const HURSTL = (code: string) => lanes.find((l) => l.locationId === "loc_hurst" && l.code === code)!.id;

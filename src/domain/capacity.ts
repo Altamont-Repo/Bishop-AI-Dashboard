@@ -1,11 +1,12 @@
 import type { Dataset, Item, Lane, Order, ScheduleAssignment } from "./types";
 
-/** Capacity for a lane on a day = the override record if present, else lane default. */
+/** Capacity for a lane on a day. A day override is used verbatim; otherwise the
+ *  lane's hard cap plus its allowed overtime buffer. */
 export function dayCapacityHrs(ds: Dataset, laneId: string, date: string): number {
   const override = ds.laneDays.find((d) => d.laneId === laneId && d.date === date);
   if (override) return override.capacityHrs;
   const lane = ds.lanes.find((l) => l.id === laneId);
-  return lane ? lane.defaultCapacityHrs : 0;
+  return lane ? lane.defaultCapacityHrs + (lane.overtimeHrs ?? 0) : 0;
 }
 
 /** Hours already booked on a lane-day across all assignments. */
@@ -34,7 +35,7 @@ export function laneDayLoad(ds: Dataset, laneId: string, date: string): LaneDayL
 /** A lane accepts an order only if the item type matches the lane type (BRD FR-LM-3),
  *  and any item special-req tags are covered by the lane's skill tags (FR-IM-4). */
 export function isEligible(lane: Lane, item: Item): { ok: boolean; reason?: string } {
-  if (lane.type !== item.type) {
+  if (!lane.types.includes(item.type)) {
     return { ok: false, reason: `no ${item.type} capability on ${lane.code}` };
   }
   const missing = item.specialReqs.filter((t) => !lane.skillTags.includes(t));

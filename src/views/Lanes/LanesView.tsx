@@ -34,18 +34,24 @@ function LaneMaster() {
 
   const addNew = () => {
     const n = lanes.length + 1;
-    addLane({ locationId, code: `L-${String(n).padStart(2, "0")}`, name: `New Table ${n}`, type: "Flat", defaultCapacityHrs: 8, shiftsPerDay: 1, skillTags: [] });
+    addLane({ locationId, code: `L-${String(n).padStart(2, "0")}`, name: `New Table ${n}`, types: ["Flat"], defaultCapacityHrs: 8, overtimeHrs: 0.5, shiftsPerDay: 1, skillTags: [] });
+  };
+
+  const toggleType = (l: typeof lanes[number], t: LaneType) => {
+    const next = l.types.includes(t) ? l.types.filter((x) => x !== t) : [...l.types, t];
+    if (!next.length) return; // a lane must run at least one type
+    updateLane(l.id, { types: next });
   };
 
   return (
     <>
       <div className="toolbar">
-        <div className="hint" style={{ margin: 0 }}>Lanes are custom per location. Hard capacity is the per-lane cap the scheduler won't book past.</div>
+        <div className="hint" style={{ margin: 0 }}>Lanes are custom per location and can run more than one sling type. Hard capacity is the per-lane cap the scheduler won't book past; overtime is an allowed buffer on top.</div>
         {canEdit && <button className="btn primary" onClick={addNew}>+ New lane for {locName}</button>}
       </div>
       <div className="card flush">
         <table>
-          <thead><tr><th>Lane / table</th><th>Code</th><th>Type</th><th>Hard cap (hrs/day)</th><th>Skill tags</th>{canEdit && <th></th>}</tr></thead>
+          <thead><tr><th>Lane / table</th><th>Code</th><th>Runs types</th><th>Hard cap (hrs/day)</th><th>Overtime (hrs)</th><th>Skill tags</th>{canEdit && <th></th>}</tr></thead>
           <tbody>
             {lanes.map((l) => (
               <tr key={l.id}>
@@ -53,8 +59,14 @@ function LaneMaster() {
                 <td>{l.code}</td>
                 <td>
                   {canEdit
-                    ? <select defaultValue={l.type} onChange={(e) => updateLane(l.id, { type: e.target.value as LaneType })}>{["Round", "Flat", "Special"].map((t) => <option key={t}>{t}</option>)}</select>
-                    : l.type}
+                    ? <div className="row" style={{ gap: 10 }}>
+                        {(["Round", "Flat", "Special"] as LaneType[]).map((t) => (
+                          <label key={t} style={{ fontSize: 11, display: "flex", gap: 3, alignItems: "center" }}>
+                            <input type="checkbox" style={{ width: "auto" }} checked={l.types.includes(t)} onChange={() => toggleType(l, t)} />{t}
+                          </label>
+                        ))}
+                      </div>
+                    : l.types.join(" / ")}
                 </td>
                 <td>
                   {canEdit
@@ -63,13 +75,18 @@ function LaneMaster() {
                 </td>
                 <td>
                   {canEdit
+                    ? <input type="number" min={0} step={0.5} defaultValue={l.overtimeHrs ?? 0} onBlur={(e) => Number(e.target.value) !== (l.overtimeHrs ?? 0) && updateLane(l.id, { overtimeHrs: Math.max(0, Number(e.target.value)) })} style={{ width: 60 }} />
+                    : (l.overtimeHrs ?? 0)}
+                </td>
+                <td>
+                  {canEdit
                     ? <input type="text" defaultValue={l.skillTags.join(", ")} onBlur={(e) => updateLane(l.id, { skillTags: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} placeholder="—" style={{ width: 120 }} />
                     : (l.skillTags.join(", ") || "—")}
                 </td>
-                {canEdit && <td><button className="btn ghost sm" onClick={() => deleteLane(l.id)}>Delete</button></td>}
+                {canEdit && <td><button className="btn ghost sm" onClick={() => { if (confirm(`Delete lane ${l.code}? Its assignments and capacity overrides will be removed. This can't be undone.`)) deleteLane(l.id); }}>Delete</button></td>}
               </tr>
             ))}
-            {!lanes.length && <tr><td colSpan={canEdit ? 6 : 5} className="muted" style={{ padding: 20, textAlign: "center" }}>No lanes for {locName}.</td></tr>}
+            {!lanes.length && <tr><td colSpan={canEdit ? 7 : 6} className="muted" style={{ padding: 20, textAlign: "center" }}>No lanes for {locName}.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -118,7 +135,7 @@ function CapacityCalendar() {
           <tbody>
             {lanes.map((l) => (
               <tr key={l.id}>
-                <td><b>{l.code}</b> <span className="muted">{l.type}</span></td>
+                <td><b>{l.code}</b> <span className="muted">{l.types.join("/")}</span></td>
                 {days.map((d) => {
                   const cap = dayCapacityHrs(ds, l.id, d);
                   const override = ds.laneDays.find((x) => x.laneId === l.id && x.date === d);

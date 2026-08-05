@@ -1,23 +1,24 @@
-/* Bishop Lifting — GREEN + RED primary theme.
-   Green = brand chrome, primary actions, on-time / completed (good).
-   Red   = alerts, active-nav accent, late / danger (attention).
-   Amber = the middle "at-risk" state. Blue is reserved only for the
-   "scheduled" chip so it stays distinct from completed-green. */
+/* Bishop Lifting — WHITE + RED theme (with a slight black).
+   White = dominant surfaces (sidebar, content, cards).
+   Red   = brand chrome (board headers), primary actions, active-nav accent,
+           late / danger. Charcoal = text + subtle structure (the "slight black").
+   Amber = the middle "at-risk" state. Slate = neutral "good" states
+   (on-time / completed). Blue is reserved only for the "scheduled" chip. */
 :root {
-  /* Greens (brand / structure) — repurposes the old navy/steel names so
-     every component that referenced them shifts to the green theme. */
-  --navy: #123a26;        /* deep green — sidebar / brand */
-  --navy2: #1c6b41;       /* header text, section titles */
-  --steel: #2f8f57;       /* secondary green — capacity bars, accents */
-  --steel-light: #e7f4ec; /* light green tint — table headers, pills */
-  --green: #2e8b57;
-  --green-dark: #1e6b41;
+  /* Reds (brand chrome / structure) — repurposes the old navy/steel names so
+     board headers, titles and lane headers read red instead of black. */
+  --navy: #b3272d;        /* Bishop red — board header background */
+  --navy2: #8f1f24;       /* deeper red — section titles, lane header */
+  --steel: #4b5563;       /* neutral charcoal accent — capacity/progress bars, outlines */
+  --steel-light: #fbeeee; /* light red tint — table headers, pills, hovers */
+  --green: #c0392b;       /* repointed to red — primary action background */
+  --green-dark: #a12d21;  /* primary action hover */
 
   --line: #d7dee6;
   --line-strong: #b7c2cf;
   --ink: #16233a;
   --ink2: #5b6b80;
-  --paper: #f3f7f4;       /* faint green-gray page background */
+  --paper: #faf7f7;       /* near-white page background, faint warm tint */
   --card: #ffffff;
 
   /* Reds (action / alert) */
@@ -28,23 +29,23 @@
   --amber: #c98a12;
 
   /* Semantic surfaces */
-  --neutral: #1e7a3d;     /* on-time text/border = green */
+  --neutral: #475569;     /* on-time text/border = slate (no green) */
   --red-bg: #fbe9e9;
   --amber-bg: #fbf1de;
-  --ok-bg: #e3f3e9;       /* on-time surface = light green */
+  --ok-bg: #eef1f4;       /* on-time surface = light slate */
 
-  --done: #1e7a3d;        /* completed = green */
-  --done-bg: #e3f3e9;
+  --done: #334155;        /* completed = slate */
+  --done-bg: #eef1f4;
 
-  /* Scheduled chip — kept blue so it reads apart from completed-green */
+  /* Scheduled chip — kept blue so it reads apart from the other states */
   --blue: #3a6ea5;
   --blue-bg: #e7edf6;
 
   --radius: 6px;
   --radius-lg: 10px;
-  --shadow-sm: 0 1px 2px rgba(18, 58, 38, .06);
-  --shadow-md: 0 6px 20px rgba(18, 58, 38, .12);
-  --shadow-pop: 0 12px 40px rgba(18, 58, 38, .22);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .06);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, .12);
+  --shadow-pop: 0 12px 40px rgba(0, 0, 0, .22);
 
   --font: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 

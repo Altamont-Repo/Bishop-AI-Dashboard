@@ -100,7 +100,7 @@ export function StatusView() {
       <div className="card flush">
         <table>
           <thead>
-            <tr><th>Production #</th><th>SKU</th><th>Lane</th><th>Scheduled</th><th>Progress</th><th>Status</th>{canUpdate && <th>Update</th>}</tr>
+            <tr><th>Production #</th><th>SKU</th><th>Order value</th><th>Lane</th><th>Scheduled</th><th>Progress</th><th>Status</th>{canUpdate && <th>Update</th>}</tr>
           </thead>
           <tbody>
             {rows.map((o) => (
@@ -110,7 +110,7 @@ export function StatusView() {
                 laneLabel={laneLabel(ds, o)} whenLabel={whenLabel(ds, o, today)}
               />
             ))}
-            {!rows.length && <tr><td colSpan={canUpdate ? 7 : 6} className="muted" style={{ padding: 20, textAlign: "center" }}>{emptyMsg[tab]}</td></tr>}
+            {!rows.length && <tr><td colSpan={canUpdate ? 8 : 7} className="muted" style={{ padding: 20, textAlign: "center" }}>{emptyMsg[tab]}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -154,6 +154,7 @@ function Row({ order, canUpdate, onStatus, onProduced, onCarry, laneLabel, whenL
     <tr>
       <td><b>{order.productionNo}</b></td>
       <td>{order.itemNumber}</td>
+      <td>{fmtMoney(order.value)}</td>
       <td className="muted">{laneLabel}</td>
       <td className={whenLabel === "Today" ? "" : "muted"} style={whenLabel === "Today" ? { fontWeight: 700 } : undefined}>{whenLabel}</td>
       <td>

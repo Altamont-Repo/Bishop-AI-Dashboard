@@ -62,7 +62,7 @@ export function buildWeekBoardHtml(p: PrintWeekParams): string {
 
   const rows = lanes
     .map((lane) => `<tr>
-        <th class="lane">${esc(lane.name)}<span>${esc(lane.code)} · ${esc(lane.type)} · ${esc(lane.defaultCapacityHrs)} hr cap</span></th>
+        <th class="lane">${esc(lane.name)}<span>${esc(lane.code)} · ${esc(lane.types.join(" / "))} · ${esc(lane.defaultCapacityHrs)} hr cap</span></th>
         ${days.map((d) => cell(lane, d)).join("")}
       </tr>`)
     .join("");

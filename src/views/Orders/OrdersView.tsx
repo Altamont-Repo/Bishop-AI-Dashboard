@@ -6,6 +6,8 @@ import { assignmentsFor, itemFor } from "../../domain/capacity";
 import { estimatedRunTimeHrs } from "../../domain/runtime";
 import { classifyRisk } from "../../domain/risk";
 import { fmtDate, fmtHrs, fmtMoney } from "../../lib/util";
+import { useSort, type Accessor } from "../../lib/useSort";
+import { SortableTh } from "../../components/ui/SortableTh";
 import { ImportanceTag, RiskTag, StatusTag } from "../../components/ui/Tag";
 import { NewOrderModal } from "./NewOrderModal";
 import { EditOrderModal } from "./EditOrderModal";
@@ -30,7 +32,7 @@ export function OrdersView() {
   const [splitId, setSplitId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
 
-  const rows = useMemo(() => ds.orders.filter((o) => {
+  const filtered = useMemo(() => ds.orders.filter((o) => {
     if (o.locationId !== locationId) return false;
     if (status !== "All" && o.status !== status) return false;
     if (type !== "All" && o.orderType !== type) return false;
@@ -38,6 +40,24 @@ export function OrdersView() {
     if (q && !`${o.productionNo} ${o.itemNumber}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   }), [ds.orders, locationId, status, type, importance, q]);
+
+  // Column sorters — importance & status rank by lifecycle order, not alphabet.
+  const sorters = useMemo<Record<string, Accessor<Order>>>(() => {
+    const impRank: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+    const statusRank: Record<string, number> = { Pending: 0, Scheduled: 1, WIP: 2, Completed: 3 };
+    return {
+      productionNo: (o) => o.productionNo.toLowerCase(),
+      itemNumber: (o) => o.itemNumber.toLowerCase(),
+      qtyNeeded: (o) => o.qtyNeeded,
+      value: (o) => o.value,
+      orderType: (o) => o.orderType,
+      importance: (o) => impRank[o.importance] ?? 0,
+      neededBy: (o) => o.neededBy,
+      runHrs: (o) => { const it = itemFor(ds, o); return it ? estimatedRunTimeHrs(it, o.qtyNeeded) : 0; },
+      status: (o) => statusRank[o.status] ?? 0,
+    };
+  }, [ds]);
+  const { sorted: rows, sortKey, sortDir, toggle } = useSort(filtered, sorters, "productionNo");
 
   const assignedLabel = (o: Order): string => {
     const a = assignmentsFor(ds, o.id);
@@ -74,8 +94,15 @@ export function OrdersView() {
         <table>
           <thead>
             <tr>
-              <th>Production #</th><th>SKU</th><th>Qty</th><th>Value</th><th>Order type</th>
-              <th>Importance</th><th>Needed by</th><th>Est. run time</th><th>Status</th>
+              <SortableTh label="Production #" col="productionNo" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="SKU" col="itemNumber" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Qty" col="qtyNeeded" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Order value" col="value" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Order type" col="orderType" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Importance" col="importance" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Needed by" col="neededBy" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Est. run time" col="runHrs" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Status" col="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
               <th>Assigned</th><th>Flag</th>{canEdit && <th></th>}
             </tr>
           </thead>
@@ -106,7 +133,7 @@ export function OrdersView() {
                       <button className="btn ghost sm" onClick={() => setEditId(o.id)}>Edit</button>
                       <button className="btn ghost sm" onClick={() => setSplitId(o.id)} disabled={o.status === "Completed"}>Split</button>
                       <button className="btn ghost sm" onClick={() => toggleFlag(o.id, "manual review")}>{o.flagged ? "Unflag" : "Flag"}</button>
-                      <button className="btn ghost sm" onClick={() => deleteOrder(o.id)}>Delete</button>
+                      <button className="btn ghost sm" onClick={() => { if (confirm(`Delete order ${o.productionNo}? It will be removed from the board and can't be undone.`)) deleteOrder(o.id); }}>Delete</button>
                     </td>
                   )}
                 </tr>

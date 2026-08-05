@@ -4,7 +4,7 @@ import {
 } from "recharts";
 import { useAppStore } from "../../store/useAppStore";
 import type { Dataset, Order } from "../../domain/types";
-import { bookedHrs, dayCapacityHrs } from "../../domain/capacity";
+import { assignmentsFor, bookedHrs, dayCapacityHrs, itemFor } from "../../domain/capacity";
 import { classifyRisk } from "../../domain/risk";
 import { fmtMoney, fmtShort, workWeek } from "../../lib/util";
 import { downloadCsv } from "../../lib/csv";
@@ -18,8 +18,8 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "mix", label: "Order mix" },
 ];
 
-// Brand palette — NO green.
-const C = { steel: "#3d5a80", navy: "#1b3155", amber: "#c98a12", red: "#b3272d", ink2: "#5b6b80", line: "#b7c2cf" };
+// White / red brand palette — red primary, warm gray secondary, amber accent.
+const C = { bar: "#c0392b", dark: "#8f8385", amber: "#c98a12", red: "#8f1f24", ink2: "#5b6b80", line: "#dfe3e8" };
 
 export function DashboardsView() {
   const ds = useAppStore((s) => s.ds);
@@ -41,7 +41,7 @@ export function DashboardsView() {
     if (tab === "throughput") downloadCsv("throughput.csv", days.map((d) => ({ day: d, ...perDay(orders, ds, d) })));
     else if (tab === "util") downloadCsv("utilization.csv", laneUtil(ds, locationId, days).map((l) => ({ lane: l.code, booked: l.booked, available: l.available, utilization: `${l.pct}%` })));
     else if (tab === "wip") downloadCsv("status.csv", statusRows(orders));
-    else downloadCsv("order-mix.csv", mixByType(orders));
+    else downloadCsv("order-mix.csv", mixByOrderType(orders));
   };
 
   return (
@@ -63,9 +63,9 @@ export function DashboardsView() {
       </div>
 
       {tab === "throughput" && <Throughput orders={orders} ds={ds} days={days} today={today} />}
-      {tab === "util" && <Utilization ds={ds} locationId={locationId} days={days} />}
-      {tab === "wip" && <Wip orders={orders} today={today} ds={ds} />}
-      {tab === "mix" && <Mix orders={orders} />}
+      {tab === "util" && <Utilization ds={ds} locationId={locationId} weekDays={days} />}
+      {tab === "wip" && <Wip orders={orders} ds={ds} />}
+      {tab === "mix" && <Mix orders={orders} ds={ds} />}
     </>
   );
 }
@@ -77,9 +77,18 @@ function completionDay(o: Order, ds: Dataset): string {
   return o.updatedAt.slice(0, 10);
 }
 
+/** Is order `o` scheduled (has an assignment) on `date`? */
+function onDate(ds: Dataset, o: Order, date: string): boolean {
+  return assignmentsFor(ds, o.id).some((a) => a.date === date);
+}
+
 function perDay(orders: Order[], ds: Dataset, day: string) {
   const done = orders.filter((o) => o.status === "Completed" && completionDay(o, ds) === day);
-  return { completed: done.length, value: done.reduce((s, o) => s + o.value, 0) };
+  return {
+    completed: done.length,
+    units: done.reduce((s, o) => s + o.qtyProduced, 0),
+    value: done.reduce((s, o) => s + o.value, 0),
+  };
 }
 
 function Throughput({ orders, ds, days, today }: { orders: Order[]; ds: Dataset; days: string[]; today: string }) {
@@ -88,7 +97,7 @@ function Throughput({ orders, ds, days, today }: { orders: Order[]; ds: Dataset;
   const onTime = scheduledOrDone.filter((o) => classifyRisk(o, [], today) === "on-time" || o.status === "Completed").length;
   const pctOnTime = scheduledOrDone.length ? Math.round((onTime / scheduledOrDone.length) * 100) : 100;
   const valueWk = completed.reduce((s, o) => s + o.value, 0);
-  const unknown = orders.filter((o) => !o.status).length;
+  const unitsWk = completed.reduce((s, o) => s + o.qtyProduced, 0);
   const data = days.map((d) => ({ day: fmtShort(d), ...perDay(orders, ds, d) }));
 
   return (
@@ -97,19 +106,29 @@ function Throughput({ orders, ds, days, today }: { orders: Order[]; ds: Dataset;
         <Kpi label="Orders completed (wk)" value={completed.length} delta="this week" deltaDir="up" />
         <Kpi label="% on or before need-by" value={`${pctOnTime}%`} deltaDir={pctOnTime >= 90 ? "up" : "down"} delta={pctOnTime >= 90 ? "on target" : "below 90%"} />
         <Kpi label="Value shipped (wk)" value={fmtMoney(valueWk)} />
-        <Kpi label="Orders in unknown state" value={unknown} />
+        <Kpi label="Units produced (wk)" value={unitsWk} />
       </div>
       <div className="card">
-        <div className="section-title">Completed orders per day</div>
+        <div className="section-title">Value shipped per day ($) — this week</div>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 8, right: 8, left: 6, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eef1f4" vertical={false} />
             <XAxis dataKey="day" tick={{ fontSize: 11, fill: C.ink2 }} />
-            <YAxis tick={{ fontSize: 11, fill: C.ink2 }} allowDecimals={false} />
-            <Tooltip />
-            <Bar dataKey="completed" name="completed" fill={C.steel} radius={[3, 3, 0, 0]} />
+            <YAxis tick={{ fontSize: 11, fill: C.ink2 }} tickFormatter={(v: number) => `$${Math.round(v / 1000)}k`} />
+            <Tooltip formatter={(v) => fmtMoney(Number(v) || 0)} />
+            <Bar dataKey="value" name="value shipped ($)" fill={C.bar} radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+      <div className="card flush">
+        <table>
+          <thead><tr><th>Day</th><th>Orders completed</th><th>Units produced</th><th>Value shipped</th></tr></thead>
+          <tbody>
+            {data.map((r) => (
+              <tr key={r.day}><td>{r.day}</td><td>{r.completed}</td><td>{r.units}</td><td>{fmtMoney(r.value)}</td></tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </>
   );
@@ -126,23 +145,33 @@ function laneUtil(ds: Dataset, locationId: string | null, days: string[]) {
     });
 }
 
-function Utilization({ ds, locationId, days }: { ds: Dataset; locationId: string | null; days: string[] }) {
-  const rows = laneUtil(ds, locationId, days);
+function Utilization({ ds, locationId, weekDays }: { ds: Dataset; locationId: string | null; weekDays: string[] }) {
+  const [day, setDay] = useState("week");
+  const scope = day === "week" ? weekDays : [day];
+  const rows = laneUtil(ds, locationId, scope);
   const totalBooked = rows.reduce((s, r) => s + r.booked, 0);
   const totalAvail = rows.reduce((s, r) => s + r.available, 0);
   const idle = Math.max(0, totalAvail - totalBooked);
   const over = rows.filter((r) => r.pct > 100).length;
+  const scopeLabel = day === "week" ? "this week (Mon–Fri)" : fmtShort(day);
 
   return (
     <>
+      <div className="filters" style={{ marginBottom: 12 }}>
+        <span className="muted" style={{ fontSize: 11 }}>Show:</span>
+        <select className="chip-select" value={day} onChange={(e) => setDay(e.target.value)}>
+          <option value="week">Whole week</option>
+          {weekDays.map((d) => <option key={d} value={d}>{fmtShort(d)}</option>)}
+        </select>
+      </div>
       <div className="grid4" style={{ marginBottom: 14 }}>
-        <Kpi label="Booked vs available" value={`${totalAvail ? Math.round((totalBooked / totalAvail) * 100) : 0}%`} />
-        <Kpi label="Idle hours (wk)" value={Math.round(idle)} />
+        <Kpi label={`Booked vs available (${day === "week" ? "wk" : "day"})`} value={`${totalAvail ? Math.round((totalBooked / totalAvail) * 100) : 0}%`} />
+        <Kpi label={`Idle hours (${day === "week" ? "wk" : "day"})`} value={Math.round(idle)} />
         <Kpi label="Lanes tracked" value={rows.length} />
         <Kpi label="Lanes over-booked" value={over} deltaDir={over ? "down" : "up"} delta={over ? "review capacity" : "within cap"} />
       </div>
       <div className="card">
-        <div className="section-title">Booked vs available hours by lane</div>
+        <div className="section-title">Booked vs available hours by lane — {scopeLabel}</div>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={rows} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eef1f4" vertical={false} />
@@ -152,11 +181,12 @@ function Utilization({ ds, locationId, days }: { ds: Dataset; locationId: string
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="available" name="available" fill={C.line} radius={[3, 3, 0, 0]} />
             <Bar dataKey="booked" name="booked" radius={[3, 3, 0, 0]}>
-              {rows.map((r, i) => <Cell key={i} fill={r.pct > 100 ? C.red : C.steel} />)}
+              {rows.map((r, i) => <Cell key={i} fill={r.pct > 100 ? C.red : C.bar} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
+      <div className="hint">Lane utilization is measured across the selected scope. Available hours include each lane's allowed overtime buffer; booked hours are the scheduled run + setup on the board.</div>
     </>
   );
 }
@@ -165,57 +195,111 @@ function statusRows(orders: Order[]) {
   const statuses: Order["status"][] = ["Pending", "Scheduled", "WIP", "Completed"];
   return statuses.map((s) => {
     const list = orders.filter((o) => o.status === s);
-    return { status: s === "Pending" ? "Not started" : s, count: list.length, value: list.reduce((a, o) => a + o.value, 0) };
+    return { status: s === "Pending" ? "Not scheduled" : s, count: list.length, value: list.reduce((a, o) => a + o.value, 0) };
   });
 }
 
-function Wip({ orders }: { orders: Order[]; today: string; ds: Dataset }) {
-  const rows = statusRows(orders);
+function Wip({ orders, ds }: { orders: Order[]; ds: Dataset }) {
+  const [date, setDate] = useState("");
+  const scoped = date ? orders.filter((o) => onDate(ds, o, date)) : orders;
+  const rows = statusRows(scoped);
+  return (
+    <>
+      <div className="filters" style={{ marginBottom: 12 }}>
+        <span className="muted" style={{ fontSize: 11 }}>Scheduled on date:</span>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        {date && <button className="btn" onClick={() => setDate("")}>Clear</button>}
+      </div>
+      <div className="card flush">
+        <table>
+          <thead><tr><th>Status</th><th>Count</th><th>Value</th></tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.status}><td>{r.status}</td><td>{r.count}</td><td>{fmtMoney(r.value)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="hint">{date ? `Showing orders scheduled on ${fmtShort(date)}.` : "Showing all orders in scope — pick a date to narrow to orders scheduled that day."}</div>
+    </>
+  );
+}
+
+function mixByOrderType(orders: Order[]) {
+  const types = ["Stock", "Customer", "eComm"] as const;
+  const totalVal = orders.reduce((s, o) => s + o.value, 0) || 1;
+  return types.map((t) => {
+    const list = orders.filter((o) => o.orderType === t);
+    const value = list.reduce((s, o) => s + o.value, 0);
+    return { type: t, orders: list.length, value, share: `${Math.round((value / totalVal) * 100)}%` };
+  });
+}
+
+function mixByProductType(orders: Order[], ds: Dataset) {
+  const types = ["Round", "Flat", "Special"] as const;
+  const totalVal = orders.reduce((s, o) => s + o.value, 0) || 1;
+  return types.map((t) => {
+    const list = orders.filter((o) => itemFor(ds, o)?.type === t);
+    const value = list.reduce((s, o) => s + o.value, 0);
+    return { type: t, orders: list.length, value, share: `${Math.round((value / totalVal) * 100)}%` };
+  });
+}
+
+function MixTable({ rows }: { rows: { type: string; orders: number; value: number; share: string }[] }) {
   return (
     <div className="card flush">
       <table>
-        <thead><tr><th>Status</th><th>Count</th><th>Value</th></tr></thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.status}><td>{r.status}</td><td>{r.count}</td><td>{fmtMoney(r.value)}</td></tr>
-          ))}
-        </tbody>
+        <thead><tr><th>Type</th><th>Orders</th><th>Value</th><th>Share ($)</th></tr></thead>
+        <tbody>{rows.map((r) => <tr key={r.type}><td>{r.type}</td><td>{r.orders}</td><td>{fmtMoney(r.value)}</td><td>{r.share}</td></tr>)}</tbody>
       </table>
     </div>
   );
 }
 
-function mixByType(orders: Order[]) {
-  const types = ["Stock", "Customer", "eComm"] as const;
-  const total = orders.length || 1;
-  return types.map((t) => {
-    const n = orders.filter((o) => o.orderType === t).length;
-    return { type: t, orders: n, share: `${Math.round((n / total) * 100)}%` };
-  });
+function ValuePie({ rows, colors }: { rows: { type: string; value: number }[]; colors: string[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <PieChart>
+        <Pie data={rows} dataKey="value" nameKey="type" cx="50%" cy="50%" outerRadius={80} label={(e: { name?: string; value?: number }) => `${e.name}: ${fmtMoney(Number(e.value) || 0)}`}>
+          {rows.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
+        </Pie>
+        <Tooltip formatter={(v) => fmtMoney(Number(v) || 0)} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
 }
 
-function Mix({ orders }: { orders: Order[] }) {
-  const byType = mixByType(orders);
-  const colors = [C.steel, C.navy, C.amber];
+function Mix({ orders, ds }: { orders: Order[]; ds: Dataset }) {
+  const [date, setDate] = useState("");
+  const scopedByDate = date ? orders.filter((o) => onDate(ds, o, date)) : orders;
+  const byOrder = mixByOrderType(orders);
+  const byProduct = mixByProductType(scopedByDate, ds);
+  const colors = [C.bar, C.dark, C.amber];
+
   return (
-    <div className="grid2">
-      <div className="card">
-        <div className="section-title">Volume by order type</div>
-        <ResponsiveContainer width="100%" height={220}>
-          <PieChart>
-            <Pie data={byType} dataKey="orders" nameKey="type" cx="50%" cy="50%" outerRadius={80} label={(e: { name?: string; value?: number }) => `${e.name}: ${e.value}`}>
-              {byType.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
+    <>
+      <div className="grid2">
+        <div className="card">
+          <div className="section-title">Value by order type ($)</div>
+          <ValuePie rows={byOrder} colors={colors} />
+        </div>
+        <MixTable rows={byOrder} />
       </div>
-      <div className="card flush">
-        <table>
-          <thead><tr><th>Type</th><th>Orders</th><th>Share</th></tr></thead>
-          <tbody>{byType.map((r) => <tr key={r.type}><td>{r.type}</td><td>{r.orders}</td><td>{r.share}</td></tr>)}</tbody>
-        </table>
+
+      <div className="grid2" style={{ marginTop: 14 }}>
+        <div className="card">
+          <div className="section-title">
+            Value by product type ($)
+            <span className="row" style={{ gap: 6, fontWeight: 400 }}>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} title="Filter to orders scheduled on a date" />
+              {date && <button className="btn ghost sm" onClick={() => setDate("")}>Clear</button>}
+            </span>
+          </div>
+          <ValuePie rows={byProduct} colors={[C.dark, C.bar, C.amber]} />
+        </div>
+        <MixTable rows={byProduct} />
       </div>
-    </div>
+      <div className="hint">Left: mix by order type (Stock / Customer / eComm). Right: mix by sling product type (Round / Flat / Special){date ? `, scheduled on ${fmtShort(date)}` : ""}. All shares are by order value ($).</div>
+    </>
   );
 }
