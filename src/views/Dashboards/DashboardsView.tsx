@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -6,7 +6,8 @@ import { useAppStore } from "../../store/useAppStore";
 import type { Dataset, Order } from "../../domain/types";
 import { assignmentsFor, bookedHrs, dayCapacityHrs, itemFor } from "../../domain/capacity";
 import { classifyRisk } from "../../domain/risk";
-import { fmtMoney, fmtShort, workWeek } from "../../lib/util";
+import { startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+import { fmtMoney, fmtShort, fromISO, toISO, workWeek } from "../../lib/util";
 import { downloadCsv } from "../../lib/csv";
 import { Kpi } from "../../components/ui/Kpi";
 
@@ -65,7 +66,7 @@ export function DashboardsView() {
       {tab === "throughput" && <Throughput orders={orders} ds={ds} days={days} today={today} />}
       {tab === "util" && <Utilization ds={ds} locationId={locationId} weekDays={days} />}
       {tab === "wip" && <Wip orders={orders} ds={ds} />}
-      {tab === "mix" && <Mix orders={orders} ds={ds} />}
+      {tab === "mix" && <Mix orders={orders} ds={ds} today={today} />}
     </>
   );
 }
@@ -111,25 +112,40 @@ function Throughput({ orders, ds, days, today }: { orders: Order[]; ds: Dataset;
       <div className="card">
         <div className="section-title">Value shipped per day ($) — this week</div>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data} margin={{ top: 8, right: 8, left: 6, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 8, right: DATA_RIGHT, left: DATA_LEFT - AXIS_W, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eef1f4" vertical={false} />
             <XAxis dataKey="day" tick={{ fontSize: 11, fill: C.ink2 }} />
-            <YAxis tick={{ fontSize: 11, fill: C.ink2 }} tickFormatter={(v: number) => `$${Math.round(v / 1000)}k`} />
+            <YAxis width={AXIS_W} tick={{ fontSize: 11, fill: C.ink2 }} tickFormatter={(v: number) => `$${Math.round(v / 1000)}k`} />
             <Tooltip formatter={(v) => fmtMoney(Number(v) || 0)} />
             <Bar dataKey="value" name="value shipped ($)" fill={C.bar} radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+        {/* Data rows aligned under each bar: left gutter matches the plot's left
+            offset (margin.left + YAxis width) and the right spacer matches margin.right. */}
+        <div className="chart-datarows" style={{ gridTemplateColumns: `${DATA_LEFT}px repeat(${data.length}, 1fr) ${DATA_RIGHT}px` }}>
+          <DataRow label="Value shipped" data={data} render={(r) => fmtMoney(r.value)} />
+          <DataRow label="Orders completed" data={data} render={(r) => r.completed} />
+          <DataRow label="Units produced" data={data} render={(r) => r.units} />
+        </div>
       </div>
-      <div className="card flush">
-        <table>
-          <thead><tr><th>Day</th><th>Orders completed</th><th>Units produced</th><th>Value shipped</th></tr></thead>
-          <tbody>
-            {data.map((r) => (
-              <tr key={r.day}><td>{r.day}</td><td>{r.completed}</td><td>{r.units}</td><td>{fmtMoney(r.value)}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    </>
+  );
+}
+
+// Layout constants shared by the Throughput chart and its data rows so the
+// per-day value columns line up directly under each bar.
+const AXIS_W = 44;     // YAxis width
+const DATA_LEFT = 116; // left gutter = margin.left + AXIS_W (holds the row labels)
+const DATA_RIGHT = 12; // right spacer = chart margin.right
+
+interface DayDatum { day: string; completed: number; units: number; value: number }
+
+function DataRow({ label, data, render }: { label: string; data: DayDatum[]; render: (r: DayDatum) => ReactNode }) {
+  return (
+    <>
+      <div className="chart-datarows-label">{label}</div>
+      {data.map((r) => <div key={r.day} className="chart-datarows-cell">{render(r)}</div>)}
+      <div />
     </>
   );
 }
@@ -269,15 +285,48 @@ function ValuePie({ rows, colors }: { rows: { type: string; value: number }[]; c
   );
 }
 
-function Mix({ orders, ds }: { orders: Order[]; ds: Dataset }) {
-  const [date, setDate] = useState("");
-  const scopedByDate = date ? orders.filter((o) => onDate(ds, o, date)) : orders;
-  const byOrder = mixByOrderType(orders);
-  const byProduct = mixByProductType(scopedByDate, ds);
+type MixRange = "today" | "week" | "month" | "ytd" | "year" | "all";
+const MIX_RANGES: { key: MixRange; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+  { key: "month", label: "This month" },
+  { key: "ytd", label: "YTD" },
+  { key: "year", label: "This year" },
+  { key: "all", label: "All" },
+];
+
+/** Inclusive [lo, hi] ISO bounds for a range relative to `today`; null = no bound (All). */
+function mixRangeBounds(range: MixRange, today: string): [string, string] | null {
+  if (range === "all") return null;
+  const t = fromISO(today);
+  if (range === "today") return [today, today];
+  if (range === "week") { const w = workWeek(t); return [w[0], w[w.length - 1]]; }
+  if (range === "month") return [toISO(startOfMonth(t)), toISO(endOfMonth(t))];
+  if (range === "ytd") return [toISO(startOfYear(t)), today];
+  return [toISO(startOfYear(t)), toISO(endOfYear(t))]; // year
+}
+
+function Mix({ orders, ds, today }: { orders: Order[]; ds: Dataset; today: string }) {
+  const [range, setRange] = useState<MixRange>("all");
+  const bounds = mixRangeBounds(range, today);
+  // Scope by need-by date so every order is attributable to a period regardless
+  // of whether it's been scheduled yet.
+  const scoped = bounds ? orders.filter((o) => o.neededBy >= bounds[0] && o.neededBy <= bounds[1]) : orders;
+  const byOrder = mixByOrderType(scoped);
+  const byProduct = mixByProductType(scoped, ds);
   const colors = [C.bar, C.dark, C.amber];
+  const rangeLabel = MIX_RANGES.find((r) => r.key === range)!.label.toLowerCase();
 
   return (
     <>
+      <div className="tab-strip" style={{ marginBottom: 14 }}>
+        {MIX_RANGES.map((r) => (
+          <button key={r.key} className={`tab-btn ${range === r.key ? "active" : ""}`} onClick={() => setRange(r.key)}>{r.label}</button>
+        ))}
+      </div>
+
+      {!scoped.length && <div className="card"><div className="muted" style={{ padding: 16, textAlign: "center" }}>No orders with a need-by date in this period.</div></div>}
+
       <div className="grid2">
         <div className="card">
           <div className="section-title">Value by order type ($)</div>
@@ -288,18 +337,12 @@ function Mix({ orders, ds }: { orders: Order[]; ds: Dataset }) {
 
       <div className="grid2" style={{ marginTop: 14 }}>
         <div className="card">
-          <div className="section-title">
-            Value by product type ($)
-            <span className="row" style={{ gap: 6, fontWeight: 400 }}>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} title="Filter to orders scheduled on a date" />
-              {date && <button className="btn ghost sm" onClick={() => setDate("")}>Clear</button>}
-            </span>
-          </div>
+          <div className="section-title">Value by product type ($)</div>
           <ValuePie rows={byProduct} colors={[C.dark, C.bar, C.amber]} />
         </div>
         <MixTable rows={byProduct} />
       </div>
-      <div className="hint">Left: mix by order type (Stock / Customer / eComm). Right: mix by sling product type (Round / Flat / Special){date ? `, scheduled on ${fmtShort(date)}` : ""}. All shares are by order value ($).</div>
+      <div className="hint">Left: mix by order type (Stock / Customer / eComm). Right: mix by sling product type (Round / Flat / Special). Scoped to orders needed {range === "all" ? "across all dates" : rangeLabel} (by need-by date). All shares are by order value ($).</div>
     </>
   );
 }

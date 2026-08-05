@@ -93,6 +93,11 @@ tbody tr:hover td { background: #fafbfd; }
 }
 .hint { font-size: 11px; color: var(--ink2); margin-top: 6px; line-height: 1.5; }
 
+/* ---- Chart data rows (values aligned under each bar) ---- */
+.chart-datarows { display: grid; margin-top: 2px; font-size: 12px; }
+.chart-datarows-label { text-align: right; padding: 5px 10px 5px 0; color: var(--ink2); font-weight: 600; white-space: nowrap; border-top: 1px solid var(--line); }
+.chart-datarows-cell { text-align: center; padding: 5px 4px; color: var(--navy2); border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+
 /* ---- Tab strip ---- */
 .tab-strip { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
 .tab-btn {
