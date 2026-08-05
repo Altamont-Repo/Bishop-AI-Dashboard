@@ -20,6 +20,7 @@ export function OrdersView() {
   const role = useAppStore((s) => s.role);
   const today = useAppStore((s) => s.today);
   const toggleFlag = useAppStore((s) => s.toggleFlag);
+  const toggleRiskAck = useAppStore((s) => s.toggleRiskAck);
   const deleteOrder = useAppStore((s) => s.deleteOrder);
   const canEdit = can(role).editOrders;
 
@@ -120,6 +121,7 @@ export function OrdersView() {
               const item = itemFor(ds, o);
               const level = classifyRisk(o, assignmentsFor(ds, o.id), today);
               const runHrs = item ? estimatedRunTimeHrs(item, o.qtyNeeded) : 0;
+              const hasRisk = o.status !== "Completed" && level !== "on-time";
               return (
                 <tr key={o.id}>
                   <td><b>{o.productionNo}</b></td>
@@ -134,15 +136,18 @@ export function OrdersView() {
                   <td><StatusTag status={o.status} /></td>
                   <td className="muted">{assignedLabel(o)}</td>
                   <td>
-                    {o.flagged ? <span className="tag late" title={o.flagReason}>flagged</span>
-                      : o.status !== "Completed" && level !== "on-time" ? <RiskTag level={level} />
+                    {hasRisk
+                      ? (o.riskAck ? <span className="muted" title="At-risk indicator dismissed by planner">dismissed</span> : <RiskTag level={level} />)
+                      : o.flagged ? <span className="tag late" title={o.flagReason}>flagged</span>
                       : <span className="muted">—</span>}
                   </td>
                   {canEdit && (
                     <td className="nowrap">
                       <button className="btn ghost sm" onClick={() => setEditId(o.id)}>Edit</button>
                       <button className="btn ghost sm" onClick={() => setSplitId(o.id)} disabled={o.status === "Completed"}>Split</button>
-                      <button className="btn ghost sm" onClick={() => toggleFlag(o.id, "manual review")}>{o.flagged ? "Unflag" : "Flag"}</button>
+                      {hasRisk
+                        ? <button className="btn ghost sm" onClick={() => toggleRiskAck(o.id)}>{o.riskAck ? "Restore risk" : "Dismiss risk"}</button>
+                        : <button className="btn ghost sm" onClick={() => toggleFlag(o.id, "manual review")}>{o.flagged ? "Unflag" : "Flag"}</button>}
                       <button className="btn ghost sm" onClick={() => { if (confirm(`Delete order ${o.productionNo}? It will be removed from the board and can't be undone.`)) deleteOrder(o.id); }}>Delete</button>
                     </td>
                   )}

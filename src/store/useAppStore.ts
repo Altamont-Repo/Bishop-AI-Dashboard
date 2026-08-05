@@ -42,6 +42,7 @@ interface AppState {
   deleteOrder: (id: string) => void;
   pasteOrders: (rows: PastedOrder[]) => number;
   toggleFlag: (id: string, reason?: string) => void;
+  toggleRiskAck: (id: string) => void;
 
   // scheduling
   scheduleOrder: (orderId: string, laneId: string, date: string) => void;
@@ -192,6 +193,12 @@ export const useAppStore = create<AppState>((set, get) => {
       ds.orders = ds.orders.map((o) => (o.id === id ? { ...o, flagged: !o.flagged, flagReason: !o.flagged ? reason : undefined, updatedAt: nowISO() } : o));
       const o = ds.orders.find((x) => x.id === id)!;
       return { ds: { orders: ds.orders }, ref: o.productionNo, action: "update", entity: "order", summary: `${o.flagged ? "flagged" : "unflagged"} ${o.productionNo}` };
+    }),
+
+    toggleRiskAck: (id) => commit((ds) => {
+      ds.orders = ds.orders.map((o) => (o.id === id ? { ...o, riskAck: !o.riskAck, updatedAt: nowISO() } : o));
+      const o = ds.orders.find((x) => x.id === id)!;
+      return { ds: { orders: ds.orders }, ref: o.productionNo, action: "update", entity: "order", summary: `${o.riskAck ? "dismissed risk on" : "restored risk on"} ${o.productionNo}` };
     }),
 
     // ---------------- scheduling ----------------

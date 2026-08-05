@@ -72,6 +72,7 @@ export interface Order {
   flagged: boolean;
   flagReason?: string;
   autoFlagged?: boolean;  // set by risk engine (distinct from manual flag)
+  riskAck?: boolean;      // planner dismissed the computed at-risk/late indicator
   createdAt: string;
   updatedAt: string;
 }
