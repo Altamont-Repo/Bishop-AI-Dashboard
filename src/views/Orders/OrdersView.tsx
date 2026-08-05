@@ -53,6 +53,7 @@ export function OrdersView() {
       orderType: (o) => o.orderType,
       importance: (o) => impRank[o.importance] ?? 0,
       neededBy: (o) => o.neededBy,
+      scheduled: (o) => { const d = assignmentsFor(ds, o.id).map((a) => a.date).sort(); return d[0] ?? "9999-12-31"; },
       runHrs: (o) => { const it = itemFor(ds, o); return it ? estimatedRunTimeHrs(it, o.qtyNeeded) : 0; },
       status: (o) => statusRank[o.status] ?? 0,
     };
@@ -65,6 +66,13 @@ export function OrdersView() {
     const lane = ds.lanes.find((l) => l.id === a[0].laneId);
     const loc = ds.locations.find((l) => l.id === o.locationId)?.name;
     return a.length > 1 ? `${a.length} segments` : `${loc} · ${lane?.code} · ${fmtDate(a[0].date)}`;
+  };
+
+  // Earliest scheduled day (with +N when it spans multiple days); "—" if unscheduled.
+  const scheduledLabel = (o: Order): string => {
+    const dates = [...new Set(assignmentsFor(ds, o.id).map((a) => a.date))].sort();
+    if (!dates.length) return "—";
+    return `${fmtDate(dates[0])}${dates.length > 1 ? ` +${dates.length - 1}` : ""}`;
   };
 
   return (
@@ -101,6 +109,7 @@ export function OrdersView() {
               <SortableTh label="Order type" col="orderType" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
               <SortableTh label="Importance" col="importance" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
               <SortableTh label="Needed by" col="neededBy" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+              <SortableTh label="Scheduled" col="scheduled" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
               <SortableTh label="Est. run time" col="runHrs" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
               <SortableTh label="Status" col="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
               <th>Assigned</th><th>Flag</th>{canEdit && <th></th>}
@@ -120,6 +129,7 @@ export function OrdersView() {
                   <td>{o.orderType}</td>
                   <td><ImportanceTag importance={o.importance} /></td>
                   <td>{fmtDate(o.neededBy)}</td>
+                  <td className={scheduledLabel(o) === "—" ? "muted" : undefined}>{scheduledLabel(o)}</td>
                   <td>{fmtHrs(runHrs)}</td>
                   <td><StatusTag status={o.status} /></td>
                   <td className="muted">{assignedLabel(o)}</td>
@@ -139,7 +149,7 @@ export function OrdersView() {
                 </tr>
               );
             })}
-            {!rows.length && <tr><td colSpan={canEdit ? 12 : 11} className="muted" style={{ padding: 20, textAlign: "center" }}>No orders match.</td></tr>}
+            {!rows.length && <tr><td colSpan={canEdit ? 13 : 12} className="muted" style={{ padding: 20, textAlign: "center" }}>No orders match.</td></tr>}
           </tbody>
         </table>
       </div>
